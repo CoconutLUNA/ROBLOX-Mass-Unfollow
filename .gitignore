@@ -1,24 +1,97 @@
-# Compiled class file
-*.class
 
-# Log file
-*.log
+// Change the number to whatever you need(make match to number at bott
+async function unfollowRobloxUsers(maxCount = 100) {
+    let unfollowed = 0;
+    
+    // Configurable delays..
+    const delays = {
+        afterMoreBtn: 300,
+        afterUnfollow: 400,
+        afterClickElsewhere: 150,
+        pageTransition: 1200
+    };
+    
+    async function processPage() {
+        console.log("Looking for more buttons...");
+        const moreButtons = [...document.querySelectorAll('.btn-generic-more-sm')];
+        console.log(`Found ${moreButtons.length} buttons`);
+        
+        if (moreButtons.length === 0 && unfollowed < maxCount) {
+            return tryNextPage();
+        }
+        
+        const batchSize = 5;
+        for (let i = 0; i < moreButtons.length; i += batchSize) {
+            if (unfollowed >= maxCount) return true;
+            
+            const batch = moreButtons.slice(i, i + batchSize);
+            
+            await Promise.all(batch.map(async (btn) => {
+                if (unfollowed >= maxCount) return;
+                
+                try {
+                    let username = "unknown";
+                    const container = btn.closest('li');
+                    if (container) {
+                        const nameEl = container.querySelector('.text-overflow');
+                        if (nameEl) username = nameEl.textContent.trim();
+                    }
+                    
+                    console.log(`Processing ${username}...`);
+                    
+                    btn.click();
+                    await new Promise(r => setTimeout(r, delays.afterMoreBtn));
+                    
+                    const unfollowOption = document.querySelector('.friend-unfollow');
+                    if (unfollowOption) {
+                        unfollowOption.click();
+                        unfollowed++;
+                        console.log(`Unfollowed ${username} (${unfollowed} total)`);
+                        await new Promise(r => setTimeout(r, delays.afterUnfollow));
+                    } else {
+                        console.log("Unfollow option not found, clicking elsewhere");
+                        document.body.click();
+                        await new Promise(r => setTimeout(r, delays.afterClickElsewhere));
+                    }
+                } catch (e) {
+                    console.error("Error:", e);
+                    document.body.click();
+                    await new Promise(r => setTimeout(r, delays.afterClickElsewhere));
+                }
+            }));
+        }
+        
+        if (unfollowed < maxCount) {
+            return tryNextPage();
+        }
+        
+        return true;
+    }
+    
+    async function tryNextPage() {
+        const nextBtn = document.querySelector('.btn-generic-right-sm');
+        
+        if (nextBtn && !nextBtn.parentElement.classList.contains('disabled')) {
+            console.log("Going to next page...");
+            nextBtn.click();
+            await new Promise(r => setTimeout(r, delays.pageTransition));
+            return false;
+        } else {
+            console.log("No more pages or next button not found");
+            return true;
+        }
+    }
+    
+    let done = false;
+    while (!done && unfollowed < maxCount) {
+        done = await processPage();
+        if (!done) {
+            console.log("Moving to next batch...");
+        }
+    }
+    
+    console.log(`Completed unfollowing ${unfollowed} users.`);
+}
 
-# BlueJ files
-*.ctxt
-
-# Mobile Tools for Java (J2ME)
-.mtj.tmp/
-
-# Package Files #
-*.jar
-*.war
-*.nar
-*.ear
-*.zip
-*.tar.gz
-*.rar
-
-# virtual machine crash logs, see http://www.java.com/en/download/help/error_hotspot.xml
-hs_err_pid*
-replay_pid*
+// Change the 100 to whatever number you want to unfollow
+unfollowRobloxUsers(100);
